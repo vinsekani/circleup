@@ -179,7 +179,7 @@ const Dashboard = () => {
 
 
 
-                {!loading && !error && (
+                
                   <div className="relative bg-gradient-to-br from-green-500 to-teal-500 p-6 shadow-lg rounded-2xl flex flex-col items-center hover:scale-105 transition-transform duration-300">
                     <div>
                       <div className="w-16 h-16 flex items-center justify-center bg-white bg-opacity-20 rounded-full shadow-md mb-4">
@@ -228,9 +228,9 @@ const Dashboard = () => {
                       </h3>
                     </div>
                   </div>
-                )}
+                
 
-                {!loading && !error && (
+                
                   <div className="relative bg-gradient-to-br from-yellow-500 to-orange-500 p-6 shadow-lg rounded-2xl flex flex-col items-center hover:scale-105 transition-transform duration-300">
                     {loading && <p className="text-center text-gray-500">Loading...</p>}
                     {error && <p className="text-red-500 text-center">{error}</p>}
@@ -267,7 +267,7 @@ const Dashboard = () => {
                       Meetings
                     </h3>
                   </div>
-                )}
+                
             </div>
           </div>
         </div>

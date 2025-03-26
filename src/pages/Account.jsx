@@ -117,19 +117,25 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaUsers, FaUserShield } from "react-icons/fa";
+import { FaUsers, FaUserShield, FaEdit, FaTrash } from "react-icons/fa";
 
 const Account = () => {
   const navigate = useNavigate();
-  const [memberGroups, setMemberGroups] = useState([]); // Groups where user is a member
-  const [adminGroups, setAdminGroups] = useState([]); // Groups where user is an admin
+  const [memberGroups, setMemberGroups] = useState([]);
+  const [adminGroups, setAdminGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [editingGroup, setEditingGroup] = useState(null); // State for editing a group
+  const [editForm, setEditForm] = useState({ name: "", slogan: "", amount: "", uid: "" }); // Form state for editing
 
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const phone = user?.phone;
-  const role = user?.role || "member"; // Default to "member" if role is not set
+  const role = user?.role || "member";
+
+  console.log("User from localStorage:", user);
+  console.log("Phone number:", phone);
+  console.log("Role:", role);
 
   useEffect(() => {
     const fetchMemberGroups = async () => {
@@ -141,9 +147,7 @@ const Account = () => {
 
       try {
         const response = await fetch(
-          `https://circleup-backend-9eaf.onrender.com/api/group/member?phone=${encodeURIComponent(
-            phone
-          )}`,
+          `https://circleup-backend-9eaf.onrender.com/api/group/member?phone=${encodeURIComponent(phone)}`,
           {
             method: "GET",
             headers: {
@@ -157,6 +161,8 @@ const Account = () => {
 
         if (response.ok) {
           setMemberGroups(data);
+        } else if (response.status === 404) {
+          setMemberGroups([]);
         } else {
           setError(data.message || "Failed to fetch member groups");
         }
@@ -168,7 +174,7 @@ const Account = () => {
     const fetchAdminGroups = async () => {
       try {
         const response = await fetch(
-          `https://circleup-backend-9eaf.onrender.com/api/group/all`,
+          `https://circleup-backend-9eaf.onrender.com/api/group/admin`,
           {
             method: "GET",
             headers: {
@@ -194,10 +200,7 @@ const Account = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch member groups
       await fetchMemberGroups();
-
-      // Fetch admin groups if the user is an admin
       if (role === "admin") {
         await fetchAdminGroups();
       }
@@ -231,6 +234,74 @@ const Account = () => {
     console.log("Setting user in localStorage:", updatedUser);
     localStorage.setItem("user", JSON.stringify(updatedUser));
     navigate("/dashboard");
+  };
+
+  const handleEditGroup = (group) => {
+    setEditingGroup(group);
+    setEditForm({
+      name: group.name,
+      slogan: group.slogan || "",
+      amount: group.amount || "",
+      uid: group.uid || "",
+    });
+  };
+
+  const handleUpdateGroup = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(
+        `https://circleup-backend-9eaf.onrender.com/api/group/${editingGroup._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(editForm),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAdminGroups(
+          adminGroups.map((g) => (g._id === editingGroup._id ? data : g))
+        );
+        setEditingGroup(null);
+        setEditForm({ name: "", slogan: "", amount: "", uid: "" });
+      } else {
+        setError(data.message || "Failed to update group");
+      }
+    } catch (err) {
+      setError("Error updating group: " + err.message);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId) => {
+    if (!window.confirm("Are you sure you want to delete this group?")) return;
+
+    try {
+      const response = await fetch(
+        `https://circleup-backend-9eaf.onrender.com/api/group/${groupId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setAdminGroups(adminGroups.filter((g) => g._id !== groupId));
+      } else {
+        setError(data.message || "Failed to delete group");
+      }
+    } catch (err) {
+      setError("Error deleting group: " + err.message);
+    }
   };
 
   return (
@@ -285,19 +356,117 @@ const Account = () => {
               {!loading &&
                 !error &&
                 adminGroups.map((group) => (
-                  <button
+                  <div
                     key={group._id}
-                    onClick={() => handleSelectGroup(group)}
-                    className="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 flex justify-between items-center"
-                    title="You are the admin of this group"
+                    className="flex items-center justify-between bg-green-600 text-white p-3 rounded-lg"
                   >
-                    <span>{group.name}</span>
-                    <span className="flex items-center space-x-1">
-                      <FaUsers className="text-white" />
-                      <span>{group.members ? group.members.length : 0}</span>
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => handleSelectGroup(group)}
+                      className="flex-1 flex justify-between items-center hover:bg-green-700 rounded-lg p-1"
+                    >
+                      <span>{group.name}</span>
+                      <span className="flex items-center space-x-1">
+                        <FaUsers className="text-white" />
+                        <span>{group.members ? group.members.length : 0}</span>
+                      </span>
+                    </button>
+                    <div className="flex space-x-2 ml-2">
+                      <button
+                        onClick={() => handleEditGroup(group)}
+                        className="text-white hover:text-yellow-300"
+                        title="Edit group"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteGroup(group._id)}
+                        className="text-white hover:text-red-300"
+                        title="Delete group"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </div>
                 ))}
+            </div>
+          </div>
+        )}
+
+        {/* Edit Group Form (Modal) */}
+        {editingGroup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4">Edit Group</h3>
+              <form onSubmit={handleUpdateGroup}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, name: e.target.value })
+                    }
+                    className="mt-1 p-2 w-full border rounded"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Slogan
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.slogan}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, slogan: e.target.value })
+                    }
+                    className="mt-1 p-2 w-full border rounded"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Amount
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.amount}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, amount: e.target.value })
+                    }
+                    className="mt-1 p-2 w-full border rounded"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    UID
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.uid}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, uid: e.target.value })
+                    }
+                    className="mt-1 p-2 w-full border rounded"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingGroup(null)}
+                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
