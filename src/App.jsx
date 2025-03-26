@@ -1,9 +1,10 @@
 import Router from "./components/Router";
+import StateProvider from "./context/context";
 
 export default function App() {
   return (
-    <div className="text-[5rem] text-[red]">
-      <Router/>
-    </div>
+    <StateProvider>
+      <Router />
+    </StateProvider>
   );
 }
